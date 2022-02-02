@@ -45,37 +45,8 @@ clf = linear_model.RidgeClassifier()
 # Calculate model accuracy with various subsets of the labled data  - F1 score 
 scores = model_selection.cross_val_score(clf, train_vectors, train_df["target"], cv=3, scoring="f1")
 #print(scores)
-
-
-
- #TF idf to improve scores 
- #https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html
- 
-def computeTF(wordDict, bagOfWords):
-    tfDict = {}
-    bagOfWordsCount = len(bagOfWords)
-    for word, count in wordDict.items():
-        tfDict[word] = count / float(bagOfWordsCount)
-    return tfDict
-
-
-train_df_bow =train_df["text"]
- 
-
-# for x in train_df["bow"]:
-#     i=0
-#     #train_df[i,'BOW'] = 
-#     print(type(x.split(' ')))
-#     #i=i+1
- 
-def preprocess_text(document):
-    for text in document:
-   # Tokenise words while ignoring punctuation
-        tokeniser = RegexpTokenizer(r'\w+')
-        tokens = tokeniser.tokenize(text)
-     
-    return tokens
- 
+  
+    
 stop_words = set(stopwords.words('english')) 
 #https://gist.github.com/4OH4/f727af7dfc0e6bb0f26d2ea41d89ee55       
 class LemmaTokenizer:
@@ -89,22 +60,58 @@ class LemmaTokenizer:
 tokenizer=LemmaTokenizer()
 token_stop = tokenizer(' '.join(stop_words))
 
-
-# bow_df = pd.DataFrame().values.tolist()
-
 # for x in train_df["text"]:
 #     i=0
-# #print(preprocess_text(x))
-#     bow_df.insert(i, x.split())
+#     #print(preprocess_text(x))
+#     bow_df[i] = preprocess_text(x)
 #     i=i+1
-  
 
-tfIdfVectorizer=TfidfVectorizer(use_idf=True,stop_words=token_stop, 
-                              tokenizer=tokenizer )
-tfIdf = tfIdfVectorizer.fit_transform(train_df["text"])
-df = pd.DataFrame(tfIdf[0].T.todense(), index=tfIdfVectorizer.get_feature_names(), columns=["TF-IDF"])
-df = df.sort_values('TF-IDF', ascending=False)
-print (df.head(25))
+ #TF idf to improve scores 
+ #https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html
+ 
+def preprocess_text(text):
+   # Tokenise words while ignoring punctuation
+    tokeniser = RegexpTokenizer(r'\w+')
+    tokens = tokeniser.tokenize(text)w
+    
+    lemmas= word_tokenize(text)
+    lemmas= WordNetLemmatizer()
+   
+    lemmatiser = WordNetLemmatizer()
+    lemmas = [lemmatiser.lemmatize(token.lower(), pos='v') for token in tokens]
+    
+    # Remove stop words
+    keywords= [lemma for lemma in lemmas if lemma not in stopwords.words('english')]
+    return keywords
+
+
+
+#bow_df =  pd.DataFrame(train_df["text"].apply(preprocess_text))
+
+# Create an instance of TfidfVectorizer
+vectoriser = TfidfVectorizer(analyzer=preprocess_text)
+# Fit to the data and transform to feature matrix
+X_train = vectoriser.fit_transform(train_df["text"])
+# Convert sparse matrix to dataframe
+X_train = pd.DataFrame.sparse.from_spmatrix(X_train)
+# Save mapping on which index refers to which words
+col_map = {v:k for k, v in vectoriser.vocabulary_.items()}
+# Rename each column using the mapping
+for col in X_train.columns:
+    X_train.rename(columns={col: col_map[col]}, inplace=True)
+print(X_train)
+
+
+
+
+
+
+#https://towardsdatascience.com/introduction-to-nlp-part-1-preprocessing-text-in-python-8f007d44ca96
+# tfIdfVectorizer=TfidfVectorizer(use_idf=True,stop_words=token_stop, tokenizer=tokenizer )
+# tfIdf = tfIdfVectorizer.fit_transform(train_df["text"])
+# df = pd.DataFrame(tfIdf[0].T.todense(), index=tfIdfVectorizer.get_feature_names(), columns=["TF-IDF"])
+# df = df.sort_values('TF-IDF', ascending=False)
+# print (df.head(25))
 
 
 # countVectorizer = CountVectorizer()
@@ -117,6 +124,9 @@ print (df.head(25))
 # df = df.sort_values('TF-IDF', ascending=False)
 # print (df.head(25))
 
+
+
+
 # #https://towardsdatascience.com/tf-idf-explained-and-python-sklearn-implementation-b020c5e83275
 
 # tfIdfVectorizer=TfidfVectorizer(use_idf=True)
@@ -125,11 +135,5 @@ print (df.head(25))
 # df = df.sort_values('TF-IDF', ascending=False)
 # print (df.head(25))
 
-# def computeTF(train_vectors, bagOfWords):
-#  ##PRedict answers based on model
-#  clf.fit(train_vectors, train_df["target"])
-#  ##Submit
-#  #sample_submission = pd.read_csv("./kaggle/submission.csv")
-# # sample_submission["target"] = clf.predict(test_vectors)
-# # print(sample_submission.head())
-
+## The same as the above but a different way
+##adding in an analyser as opposed to stop words and a tokenizer
